@@ -30,13 +30,13 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String sonuc = "";
 
-
-
   @override
   Widget build(BuildContext context) {
     final word = new TextEditingController();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(widget.title),
       ),
@@ -44,6 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            LogoImageWidget(),
             Padding(
               padding: EdgeInsets.fromLTRB(40, 5, 40, 5),
               child: TextField(
@@ -64,10 +65,12 @@ class _MyHomePageState extends State<MyHomePage> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30)),
             ),
-            Text(
-              '$sonuc',            
-              style: Theme.of(context).textTheme.display1,
-            ),
+            Text('$sonuc',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20.0,
+                  decoration: TextDecoration.underline,
+                )),
           ],
         ),
       ),
@@ -84,25 +87,46 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     print(response);
     List result = json.decode(response.body);
-    if (word == result[0]["wordEn"]) {
-      print(result[0]["wordTr"]);
-            for(int i=0 ; i<result.length;i++){
+    if (result != null && result.length > 0) {
+      if (word == result[0]["wordEn"]) {
+        print(result[0]["wordTr"]);
+        for (int i = 0; i < result.length; i++) {
           print(result[i]["wordTr"]);
-          kelime= kelime + result[i]["wordTr"] + " , ";
-      }
-      setState(() {
-        sonuc = kelime;
-      });
-    } else {
-      print(result[0]["wordEn"]);
-      for(int i=0 ; i<result.length;i++){
+          kelime = kelime + " " + result[i]["wordTr"] + " , ";
+        }
+        setState(() {
+          sonuc = kelime;
+        });
+      } else {
+        print(result[0]["wordEn"]);
+        for (int i = 0; i < result.length; i++) {
           print(result[i]["wordEn"]);
-          kelime= kelime + result[i]["wordEn"] + " , ";
+          kelime = kelime + " " + result[i]["wordEn"] + " , ";
+        }
+        setState(() {
+          sonuc = kelime;
+        });
       }
-      setState(() {
+    } else {
+      print("Kelime Bulunamadı");
 
-        sonuc = kelime;
+      setState(() {
+        sonuc = "KELİME BULUNAMADI \n NO WORDS FOUND.";
       });
     }
+  }
+}
+
+class LogoImageWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    AssetImage logoAsset = AssetImage("images/logo.png");
+    Image image = Image(
+      image: logoAsset,
+      width: 350.0,
+      height: 100.0,
+    );
+
+    return Container(child: image);
   }
 }

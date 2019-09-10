@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:speech_recognition/speech_recognition.dart';
 
 void main() => runApp(MyApp());
 
@@ -11,7 +12,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Dictionary App',
       theme: ThemeData(
-        primarySwatch: Colors.pink,
+        primarySwatch: Colors.red,
       ),
       home: MyHomePage(title: 'Dictionary App'),
     );
@@ -28,12 +29,44 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  SpeechRecognition _speechRecognition;
+  bool _isAvailable = false;
+  bool _isListening = false;
+
+  String resultText = "";
+
+  @override
+  void initState() {
+    super.initState();
+     initSpeechRecognizer();
+  }
+
+  void initSpeechRecognizer() {
+    _speechRecognition = SpeechRecognition();
+    _speechRecognition.setAvailabilityHandler(
+        (bool result) => setState(() => _isAvailable = result));
+    _speechRecognition.setRecognitionStartedHandler(
+        () => setState(() => _isListening = true));
+    _speechRecognition.setRecognitionResultHandler(
+        (String speech) => setState(() => resultText = speech));
+    _speechRecognition.setRecognitionCompleteHandler(
+        () => setState(() => _isListening = false));
+    _speechRecognition.activate().then(
+          (result) => setState(() => _isAvailable = result));
+
+
+
+
+  }
+
   String sonuc = "";
+  List result = new List();
+  ListView listView = ListView();
+  FocusNode _focusNode = new FocusNode(); //1 - declare and initialize variable
+  final word = new TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    final word = new TextEditingController();
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
@@ -43,12 +76,14 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
+          children: <Widget>[                   
             LogoImageWidget(),
             Padding(
               padding: EdgeInsets.fromLTRB(40, 5, 40, 5),
               child: TextField(
                 controller: word,
+                focusNode:
+                    _focusNode, //FocusScope.of(context).requestFocus(FocusNode());,
                 decoration: InputDecoration(
                   hintText: "Kelime Giriniz / Enter Word",
                   contentPadding: EdgeInsets.fromLTRB(20, 5, 20, 20),
@@ -59,26 +94,64 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             RaisedButton(
               onPressed: () {
+                _focusNode.unfocus();
                 _translate(word.text);
               },
               child: Text("Çevir / Translate"),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30)),
             ),
-            Text('$sonuc',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20.0,
-                  decoration: TextDecoration.underline,
-                )),
-          ],
+             
+            Expanded(child: listView),
+            Row(
+               mainAxisAlignment: MainAxisAlignment.center,               
+              children:<Widget>[
+
+            FloatingActionButton(
+              child: Icon(Icons.cancel),
+              mini: true,
+              backgroundColor: Colors.amber,
+               onPressed: (){if (_isListening)
+                      _speechRecognition.cancel().then(
+                            (result) => setState(() {
+                                  _isListening = result;                                  
+                                  resultText = "";
+                                
+                                }),
+                          );},),  
+            FloatingActionButton(   
+              child: Icon(Icons.mic),           
+              backgroundColor: Colors.red,
+               onPressed: (){
+                 if (_isAvailable && !_isListening)
+                      _speechRecognition
+                          .listen(locale: "tr_TR" )
+                          .then((result) => print('$result'));
+                          },),
+            FloatingActionButton(
+              child: Icon(Icons.stop),
+              mini: true,
+              backgroundColor: Colors.amber,
+               onPressed: (){
+                 if (_isListening)
+                      _speechRecognition.stop().then(
+                            //(result) => setState(() => _isListening = result),
+                            (result) => setState(() {
+                              _isListening = result;
+                              word.text=resultText;
+                              _translate(word.text);
+                            }
+                          ));},),
+           
+            
+            
+          ])],
         ),
       ),
     );
   }
 
   _translate(String word) async {
-    String kelime = "";
     String url =
         "https://dictionaryapp20190827024422.azurewebsites.net/api/keywords/";
     url = url + word;
@@ -86,34 +159,10 @@ class _MyHomePageState extends State<MyHomePage> {
       "Accept": "application/json",
     });
     print(response);
-    List result = json.decode(response.body);
-    if (result != null && result.length > 0) {
-      if (word == result[0]["wordEn"]) {
-        print(result[0]["wordTr"]);
-        for (int i = 0; i < result.length; i++) {
-          print(result[i]["wordTr"]);
-          kelime = kelime + " " + result[i]["wordTr"] + " , ";
-        }
-        setState(() {
-          sonuc = kelime;
-        });
-      } else {
-        print(result[0]["wordEn"]);
-        for (int i = 0; i < result.length; i++) {
-          print(result[i]["wordEn"]);
-          kelime = kelime + " " + result[i]["wordEn"] + " , ";
-        }
-        setState(() {
-          sonuc = kelime;
-        });
-      }
-    } else {
-      print("Kelime Bulunamadı");
-
-      setState(() {
-        sonuc = "KELİME BULUNAMADI \n NO WORDS FOUND.";
-      });
-    }
+    setState(() {
+      result = json.decode(response.body);
+      listView = _myListView(context, result, word);
+    });
   }
 }
 
@@ -128,5 +177,30 @@ class LogoImageWidget extends StatelessWidget {
     );
 
     return Container(child: image);
+  }
+}
+
+Widget _myListView(BuildContext context, List wordList, String word) {
+  if (word != null && wordList.length > 0) {
+    return ListView.builder(
+      itemCount: wordList.length,
+      itemBuilder: (context, index) {
+        if (word == wordList[index]["wordEn"]) {
+          return ListTile(
+              title: Text("EN -> TR     " + wordList[index]["wordTr"],
+                  textAlign: TextAlign.center));
+        } else {
+          return ListTile(
+              title: Text("TR -> EN     " + wordList[index]["wordEn"],
+                  textAlign: TextAlign.center));
+        }
+      },
+    );
+  } else {
+    return ListView(children: <Widget>[
+      ListTile(
+          title: Text("KELİME BULUNAMADI \n NO WORDS FOUND.",
+              textAlign: TextAlign.center)),
+    ]);
   }
 }

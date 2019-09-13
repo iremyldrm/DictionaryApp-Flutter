@@ -48,16 +48,21 @@ class _MyHomePageState extends State<MyHomePage> {
     _speechRecognition.setRecognitionStartedHandler(
         () => setState(() => _isListening = true));
     _speechRecognition.setRecognitionResultHandler(
-        (String speech) => setState(() => resultText = speech));
+        (String speech) => setState(() =>  resultText = speech));
     _speechRecognition.setRecognitionCompleteHandler(
-        () => setState(() => _isListening = false));
+        () => setState(( ) => {
+                              _isListening = false, 
+                              word.text=resultText,                            
+                              _translate(word.text)
+        }) );
     _speechRecognition.activate().then(
           (result) => setState(() => _isAvailable = result));
 
 
 
-
   }
+
+
 
   String sonuc = "";
   List result = new List();
@@ -126,22 +131,23 @@ class _MyHomePageState extends State<MyHomePage> {
                  if (_isAvailable && !_isListening)
                       _speechRecognition
                           .listen(locale: "tr_TR" )
-                          .then((result) => print('$result'));
+                          .then((result) => print('$result'));                          
                           },),
             FloatingActionButton(
               child: Icon(Icons.stop),
               mini: true,
               backgroundColor: Colors.amber,
                onPressed: (){
-                 if (_isListening)
-                      _speechRecognition.stop().then(
+                 if (_isListening) {
+                   _speechRecognition.stop().then(
                             //(result) => setState(() => _isListening = result),
                             (result) => setState(() {
-                              _isListening = result;
-                              word.text=resultText;
+                              _isListening = result;  
+                              word.text=resultText;                            
                               _translate(word.text);
                             }
-                          ));},),
+                          ));
+                 }},),
            
             
             
@@ -152,6 +158,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   _translate(String word) async {
+
+if(word.isNotEmpty){
+
     String url =
         "https://dictionaryapp20190827024422.azurewebsites.net/api/keywords/";
     url = url + word;
@@ -164,6 +173,9 @@ class _MyHomePageState extends State<MyHomePage> {
       listView = _myListView(context, result, word);
     });
   }
+
+  }
+
 }
 
 class LogoImageWidget extends StatelessWidget {
